@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, ILike } from 'typeorm';
 import { Product } from './entities/product.entity';
 import { CreateProductDto } from './dto/request/create-product.dto';
 import { UpdateProductDto } from './dto/request/update-product.dto';
@@ -9,44 +9,54 @@ import { UpdateProductDto } from './dto/request/update-product.dto';
 export class ProductsService {
   constructor(
     @InjectRepository(Product)
-    private productRepo: Repository<Product>,
+    private readonly repo: Repository<Product>,
   ) {}
 
-  create(dto: CreateProductDto) {
-    const product = this.productRepo.create(dto);
-    return this.productRepo.save(product);
+  // 🟢 CREATE PRODUCT
+  async create(dto: CreateProductDto) {
+    const product = this.repo.create(dto);
+    return this.repo.save(product);
   }
 
-  findAll(search?: string, isActive?: boolean) {
-    const qb = this.productRepo.createQueryBuilder('product');
+  // 🔍 GET ALL PRODUCTS (with optional filters)
+  async findAll(search?: string, isActive?: boolean) {
+    const where: any = {};
+    if (search) where.name = ILike(`%${search}%`);
+    if (isActive !== undefined) where.isActive = isActive;
 
-    if (search) {
-      qb.andWhere('LOWER(product.name) LIKE :search OR LOWER(product.description) LIKE :search', { search: `%${search.toLowerCase()}%` });
-    }
-
-    if (isActive !== undefined) {
-      qb.andWhere('product.isActive = :isActive', { isActive });
-    }
-
-    return qb.getMany();
+    return this.repo.find({
+      where,
+      order: { id: 'DESC' },
+    });
   }
 
-  findTopByPrice(limit = 5) {
-    return this.productRepo.createQueryBuilder('product')
-      .orderBy('product.price', 'DESC')
-      .limit(limit)
-      .getMany();
+  // 🔝 GET TOP PRODUCTS BY PRICE
+  async findTopByPrice() {
+    return this.repo.find({
+      order: { price: 'DESC' },
+      take: 5,
+    });
   }
 
-  findOne(id: number) {
-    return this.productRepo.findOneBy({ id });
+  // 🔍 GET ONE PRODUCT
+  async findOne(id: number) {
+    const product = await this.repo.findOne({ where: { id } });
+    if (!product) throw new NotFoundException('Product not found');
+    return product;
   }
 
-  update(id: number, dto: UpdateProductDto) {
-    return this.productRepo.update(id, dto);
+  // ✏️ UPDATE PRODUCT
+  async update(id: number, dto: UpdateProductDto) {
+    const product = await this.findOne(id);
+    if (!product) throw new NotFoundException('Product not found');
+    await this.repo.update(id, dto);
+    return this.findOne(id);
   }
 
-  remove(id: number) {
-    return this.productRepo.delete(id);
+  // 🗑️ DELETE PRODUCT
+  async remove(id: number) {
+    const result = await this.repo.delete(id);
+    if (result.affected === 0) throw new NotFoundException('Product not found');
+    return { message: 'Product deleted successfully' };
   }
 }

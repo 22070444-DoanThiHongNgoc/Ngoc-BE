@@ -1,19 +1,9 @@
-// src/products/dto/request/create-product.dto.ts
-import { IsString, IsOptional, IsNumber, IsBoolean } from 'class-validator';
-
 export class CreateProductDto {
-  @IsString()
   name: string;
-
-  @IsOptional()
-  @IsString()
   description?: string;
-
-  @IsNumber()
   price: number;
-
-  @IsOptional()
-  @IsBoolean()
+  quantity: number;
+  image?: string; // ✅ Thêm dòng này
   isActive?: boolean;
+  category?: string;
 }
-

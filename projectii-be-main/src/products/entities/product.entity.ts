@@ -18,8 +18,11 @@ export class Product {
   quantity: number;
 
   @Column({ nullable: true })
-  image: string; // URL hoặc base64
+  image: string; // lưu đường dẫn ảnh /uploads/products/xxx.png
 
   @Column({ default: true })
   isActive: boolean;
+
+  @Column({ nullable: true })
+  category: string;
 }

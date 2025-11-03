@@ -1,56 +1,45 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import * as os from 'os';
+import { join } from 'path';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import * as bodyParser from 'body-parser';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // ✅ Khởi tạo NestJS dạng Express
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-app.enableCors({
-  origin: true, // ✅ Tự động chấp nhận origin của request
-  credentials: true,
-});
+  // ✅ Cho phép truy cập file ảnh từ thư mục uploads
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/uploads/',
+  });
 
+  // ✅ Tăng giới hạn dung lượng file upload (fix lỗi 413)
+  app.use(bodyParser.json({ limit: '10mb' }));
+  app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
-  // ✅ Swagger config
+  // ✅ Cho phép frontend truy cập API qua mạng LAN
+  app.enableCors({
+    origin: '*', // hoặc "http://192.168.88.135:3001"
+  });
+
+  // ✅ Cấu hình Swagger (tài liệu API)
   const config = new DocumentBuilder()
-    .setTitle('SMS API')
-    .setDescription('The sales management system API description')
+    .setTitle('🚀 Product Management API')
+    .setDescription('API documentation for your NestJS backend (Products, Customers, Auth, etc.)')
     .setVersion('1.0')
-    .addTag('sms')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'Authorization',
-        in: 'header',
-      },
-      'access-token',
-    )
+    .addTag('products')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('api', app, document); // đường dẫn: /api
 
-  // ✅ Lắng nghe tất cả IP trong mạng LAN
-  const port = process.env.PORT ?? 3000;
-  await app.listen(port, '0.0.0.0');
-  console.log(`🚀 Backend running at: http://${getLocalIP()}:${port}`);
-}
+  // ✅ Chạy backend tại 3000
+  await app.listen(3000, '0.0.0.0');
 
-// ✅ Hàm lấy IP LAN tự động
-function getLocalIP(): string {
-  const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name] || []) {
-      if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address;
-      }
-    }
-  }
-  return 'localhost';
+  console.log('✅ Swagger: http://192.168.88.135:3000/api');
+  console.log('🚀 Backend running at: http://192.168.88.135:3000');
+  console.log('📂 Static files: /uploads/');
 }
 
 bootstrap();
-
